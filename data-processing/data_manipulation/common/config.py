@@ -28,8 +28,15 @@ knowledge_chunk_size = os.getenv('KNOWLEDGE_CHUNK_SIZE', 500)
 knowledge_chunk_overlap = os.getenv('KNOWLEDGE_CHUNK_OVERLAP', 50)
 
 # pg数据库
-pg_host = os.getenv('PG_HOST', 'localhost')
-pg_port = os.getenv('PG_PORT', 5432)
-pg_user = os.getenv('PG_USER', 'postgres')
-pg_password = os.getenv('PG_PASSWORD', 'xxxxxx')
-pg_database = os.getenv('PG_DATABASE', 'data_process')
+# pg_host = os.getenv('PG_HOST', 'localhost')
+# pg_port = os.getenv('PG_PORT', 5432)
+# pg_user = os.getenv('PG_USER', 'postgres')
+# pg_password = os.getenv('PG_PASSWORD', 'xxxxxx')
+# pg_database = os.getenv('PG_DATABASE', 'data_process')
+
+pg_host = os.getenv('PG_HOST', '172.22.96.136')
+pg_port = os.getenv('PG_PORT', 30030)
+pg_user = os.getenv('PG_USER', 'admin')
+pg_password = os.getenv('PG_PASSWORD', 'Passw0rd!')
+pg_database = os.getenv('PG_DATABASE', 'arcadia')
+
