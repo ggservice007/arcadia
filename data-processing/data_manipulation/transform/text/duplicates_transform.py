@@ -23,5 +23,5 @@
 # content:
 # 1) 基本功能实现
 ###
-async def remove_duplicates(opt={}):
+def remove_duplicates(opt={}):
     return opt['text']

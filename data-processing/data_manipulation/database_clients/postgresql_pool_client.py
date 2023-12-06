@@ -54,7 +54,7 @@ def get_connection_from_pool(pool):
 
 
 
-async def execute_query(pool, sql, params={}):
+def execute_query(pool, sql, params={}):
     """Execute a query with the parameters."""
     error = ''
     data = []
@@ -93,7 +93,7 @@ async def execute_query(pool, sql, params={}):
     }
 
     
-async def execute_count_query(pool, sql, params={}):
+def execute_count_query(pool, sql, params={}):
     """Execute a count query with the parameters."""
     error = ''
     data = None
@@ -102,7 +102,6 @@ async def execute_count_query(pool, sql, params={}):
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                 cursor.execute(sql, params)
                 data = cursor.fetchone()[0]
-
     except Exception as ex:
         error = str(ex)
         data = None
@@ -126,7 +125,7 @@ async def execute_count_query(pool, sql, params={}):
     }
 
 
-async def execute_update(pool, sql, params={}):
+def execute_update(pool, sql, params={}):
     """Execute a update with the parameters."""
     error = ''
     data = None

@@ -13,25 +13,10 @@
 # limitations under the License.
 
 
-KUBERNETES = "Kubernetes"
-
-WEB_SERVER_ERROR = "Web Server Error"
-WEB_SERVER_ACCESS = "Web Server Access"
-
-DATABASE_POSTGRESQL = "DataBase PostgreSQL"
-MINIO = "Minio"
-MINIO_STORE_PROCESS = "Minio Store Process"
-
-DATA_PROCESS_DETAIL = "Data Process Detail"
-
-PDF_HANDLE = "PDF Handle"
-CSV_HANDLE = "CSV Handle"
-QA_SPLIT = "Question Answer Split"
-
-CLEAN_TRANSFORM = "Clean Transform"
-PRIVACY_TRANSFORM = "Privacy Transform"
-
-THREADING = "Threading"
-
-ZHI_PU_AI = "Zhi Pu AI"
-
+def get_default_prompt_template():
+    prompt_template = """
+        {text}
+        
+        将上述内容提出最多 25 个问题。给出每个问题的答案。每个问题必须有答案。
+    """
+    return prompt_template

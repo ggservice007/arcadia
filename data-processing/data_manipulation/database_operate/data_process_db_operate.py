@@ -20,7 +20,7 @@ from sanic.response import json
 from database_clients import postgresql_pool_client
 from utils import date_time_utils
 
-async def list_by_page(req_json, opt={}):
+def list_by_page(req_json, opt={}):
     """Get the list data for data processing by page"""
     pool = opt['pool']
     
@@ -48,11 +48,11 @@ async def list_by_page(req_json, opt={}):
         limit %(pageSize)s offset %(pageIndex)s
     """.strip()
 
-    res = await postgresql_pool_client.execute_query(pool, sql, params)
+    res = postgresql_pool_client.execute_query(pool, sql, params)
     return res
 
 
-async def list_by_count(req_json, opt={}):
+def list_by_count(req_json, opt={}):
     """Get count for the list data processing with page"""
     pool = opt['pool']
     
@@ -69,11 +69,11 @@ async def list_by_count(req_json, opt={}):
           name like %(keyword)s
     """.strip()
 
-    res = await postgresql_pool_client.execute_count_query(pool, sql, params)
+    res = postgresql_pool_client.execute_count_query(pool, sql, params)
     return res
 
 
-async def delete_by_id(req_json, opt={}):
+def delete_by_id(req_json, opt={}):
     """Delete a record with id"""
     pool = opt['pool']
 
@@ -87,11 +87,11 @@ async def delete_by_id(req_json, opt={}):
           id = %(id)s
     """.strip()
 
-    res =  await postgresql_pool_client.execute_update(pool, sql, params)
+    res = postgresql_pool_client.execute_update(pool, sql, params)
     return res
 
 
-async def add(req_json, opt={}):
+def add(req_json, opt={}):
     """Add a new record"""
     pool = opt['pool']
     
@@ -160,11 +160,11 @@ async def add(req_json, opt={}):
         )
     """.strip()
 
-    res =  await postgresql_pool_client.execute_update(pool, sql, params)
+    res = postgresql_pool_client.execute_update(pool, sql, params)
     return res
 
 
-async def update_status_by_id(req_json, opt={}):
+def update_status_by_id(req_json, opt={}):
     """Update the status with id"""
     pool = opt['pool']
 
@@ -192,11 +192,11 @@ async def update_status_by_id(req_json, opt={}):
           id = %(id)s
     """.strip()
 
-    res =  await postgresql_pool_client.execute_update(pool, sql, params)
+    res = postgresql_pool_client.execute_update(pool, sql, params)
     return res
 
 
-async def info_by_id(req_json, opt={}):
+def info_by_id(req_json, opt={}):
     """info with id"""
     pool = opt['pool']
 
@@ -226,5 +226,5 @@ async def info_by_id(req_json, opt={}):
           id = %(id)s
     """.strip()
 
-    res = await postgresql_pool_client.execute_query(pool, sql, params)
+    res = postgresql_pool_client.execute_query(pool, sql, params)
     return res

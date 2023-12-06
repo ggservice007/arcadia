@@ -20,7 +20,7 @@ from utils import date_time_utils
 
 logger = logging.getLogger(__name__)
 
-async def update_dataset_k8s_cr(opt={}):
+def update_dataset_k8s_cr(opt={}):
     """ Update the condition info for the dataset.
     
     opt is a dictionary object. It has the following keys:

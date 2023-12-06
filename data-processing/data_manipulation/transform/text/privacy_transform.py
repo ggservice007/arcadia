@@ -13,49 +13,46 @@
 # limitations under the License.
 
 
-###
-# 去隐私
-# @author: wangxinbiao
-# @date: 2023-11-01 10:44:01
-# modify history
-# ==== 2023-11-01 10:44:01 ====
-# author: wangxinbiao
-# content:
-# 1) 基本功能实现
-###
-
+import logging
 import re
+import traceback
+
+from common import log_tag_const, special_characters
 
 
-###
-# 去除邮箱地址
-# @author: wangxinbiao
-# @date: 2023-11-02 14:42:01
-# modify history
-# ==== 2023-11-02 14:42:01 ====
-# author: wangxinbiao
-# content:
-# 1) 基本功能实现
-###
-async def remove_email(opt={}):
+logger = logging.getLogger(__name__)
+
+
+def remove_email(opt={}):
+    """Replace email info with the user defined string.
+    
+    opt is a dictionary object. It has the following keys:
+    text: text;
+    replace_string: the text is used to replace the email info;
+    """
     text = opt['text']
+    replace_string = opt.get('replace_string', 'T:EMAIL')
 
     try:
-        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-
-        # 将邮箱地址替换为 "PI:EMAIL"
-        replacement_text = "PI:EMAIL"
-
-        clean_text = re.sub(email_pattern, replacement_text, text)
+        pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+   
+        matches = re.findall(pattern, text)
+        clean_text = re.sub(pattern, replace_string, text)
         return {
             'status': 200,
             'message': '',
-            'data': clean_text
+            'data': {
+                'found': len(matches),
+                'text': clean_text
+            }
         }
-
     except Exception as ex:
+        logger.error(''.join([
+            f"{log_tag_const.CLEAN_TRANSFORM} Execute removing email.\n",
+            f"The tracing error is: \n{traceback.format_exc()}\n"
+        ]))
         return {
             'status': 400,
-            'message': '去除邮箱地址失败：' + str(ex),
-            'data': ''
+            'message': str(ex),
+            'data': traceback.format_exc()
         }

@@ -29,7 +29,7 @@ from utils import file_utils
 logger = logging.getLogger(__name__)
 
 
-async def get_minio_client():
+def get_minio_client():
     """Get a new minio client."""
     return Minio(
         config.minio_api_url,
@@ -48,7 +48,7 @@ async def get_minio_client():
     )
     
     
-async def download(minio_client, opt={}):
+def download(minio_client, opt={}):
     """Download a file.
 
     minio_client: minio client;
@@ -61,7 +61,7 @@ async def download(minio_client, opt={}):
     folder_prefix = opt['folder_prefix']
     bucket_name = opt['bucket_name']
     file_name = opt['file_name']
-    file_path = await file_utils.get_temp_file_path()
+    file_path = file_utils.get_temp_file_path()
 
     # 如果文件夹不存在，则创建
     directory_path = file_path + 'original'
@@ -77,7 +77,7 @@ async def download(minio_client, opt={}):
     )
 
 
-async def upload_files_to_minio_with_tags(minio_client, opt={}):
+def upload_files_to_minio_with_tags(minio_client, opt={}):
     """Upload the files to minio with tags
     
     opt is a dictionary object. It has the following keys:
@@ -121,7 +121,7 @@ async def upload_files_to_minio_with_tags(minio_client, opt={}):
                 )
 
                 # 删除本地文件
-                await file_utils.delete_file(local_file_path)
+                file_utils.delete_file(local_file_path)
             except S3Error as ex:
                 logger.error(''.join([
                     f"{log_tag_const.MINIO} Error uploading {minio_object_name} ",

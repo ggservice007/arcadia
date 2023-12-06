@@ -37,5 +37,5 @@ import re
 # content:
 # 1) 基本功能实现
 ###
-async def word_count(opt={}):
+def word_count(opt={}):
     return 49

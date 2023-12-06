@@ -16,80 +16,94 @@
 import logging
 import os
 import pandas as pd
-from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import SpacyTextSplitter
-from pypdf import PdfReader
+import traceback
 import ulid
 
 from common import config, log_tag_const
 from database_operate import data_process_detail_db_operate
-from file_handle import csv_handle
 from llm_api_service import zhi_pu_ai_service
+from llm_data_helper import text_split_helper
 from transform.text import clean_transform, privacy_transform
-from utils import file_utils
-
+from utils import (
+    csv_utils, 
+    file_utils,
+    pdf_utils
+)
 
 
 logger = logging.getLogger(__name__)
 
 
-async def text_manipulate(req_json, opt={}):
+def text_manipulate(opt={}):
+    """Manipulate the text content from a pdf file.
+    
+    opt is a dictionary object. It has the following keys:
+    file_name: file name;
+    support_type: support type;
+    conn_pool: database connection pool;
+    task_id: data process task id;
+    chunk_size: chunk size;
+    chunk_overlap: chunk overlap;
+    """
+    
     logger.debug(f"{log_tag_const.PDF_HANDLE} Start to manipulate the text in pdf")
 
     try:
-        
         file_name = opt['file_name']
         support_type = opt['support_type']
-        conn_pool = opt['conn_pool'] # database connectionn pool
+        
+        pdf_file_path = file_utils.get_temp_file_path()
+        file_path = pdf_file_path + 'original/' + file_name
+        
+        # step 1
+        # Get the content from the pdf fild.
+        content = pdf_utils.get_content({
+            "file_path": file_path
+        })
+        logger.debug(f"{log_tag_const.PDF_HANDLE} The pdf content is\n {content}")
+
+        support_type_map = _convert_support_type_to_map(support_type)
+        
+        # step 2
+        # Clean the data such as removing invisible characters.
+        clean_result = _data_clean({
+            'support_type_map': support_type_map,
+            'file_name': file_name,
+            'data': content,
+            'conn_pool': opt['conn_pool'],
+            'task_id': opt['task_id']
+        })
+
+        if clean_result['status'] == 200:
+            content = clean_result['data']
+
+        # step 3
+        # Remove the privacy info such as removing email.
+        clean_result = _remove_privacy_info({
+            'support_type_map': support_type_map,
+            'file_name': file_name,
+            'data': content,
+            'conn_pool': opt['conn_pool'],
+            'task_id': opt['task_id']
+        })
+
+        if clean_result['status'] == 200:
+            content = clean_result['data']
+
+
         
         # 数据量
         object_count = 0
         object_name = ''
-        
-        pdf_file_path = await file_utils.get_temp_file_path()
-        file_path = pdf_file_path + 'original/' + file_name
-        
+        if support_type_map.get('qa_split'):
+            logger.debug(f"{log_tag_const.QA_SPLIT} Start to split QA.")
 
-        # 获取PDF文件的内容
-        content = await get_content({
-            "file_path": file_path
-        })
-
-        logger.info("start text manipulate!")
-
-        # 数据清洗
-        clean_result = await data_clean({
-            'support_type': support_type,
-            'file_name': file_name,
-            'data': content
-        })
-
-        if clean_result['status'] != 200:
-            return clean_result
-        else:
-            content = clean_result['data']
-
-        # 去隐私
-        clean_result = await privacy_erosion({
-            'support_type': support_type,
-            'file_name': file_name,
-            'data': content
-        })
-
-        if clean_result['status'] != 200:
-            return clean_result
-        else:
-            content = clean_result['data']
-
-        # QA拆分
-        if any(d.get('type') == 'qa_split' for d in support_type):
-
-            qa_data = await generate_QA(req_json, {
+            qa_data = _generate_qa_list({
+                'chunk_size': opt['chunk_size'],
+                'chunk_overlap': opt['chunk_overlap'],
                 'support_type': support_type,
                 'data': content
             })
-
-            # qa_data = []
 
             logger.debug(f"{log_tag_const.QA_SPLIT} The QA data is: \n{qa_data}\n")
 
@@ -105,33 +119,27 @@ async def text_manipulate(req_json, opt={}):
                     'answer': qa_data[i][1]
                 }
                
-                await data_process_detail_db_operate.insert_question_answer_info(
+                data_process_detail_db_operate.insert_question_answer_info(
                     qa_insert_item, {
                         'pool': opt['conn_pool']
                     }
                 )
-                
-        
-            # 将生成的QA数据保存为CSV文件
-            new_file_name = await file_utils.get_file_name({
-                'file_name': file_name,
-                'handle_name': 'final'
-            })
 
-
-            file_name_without_extension = file_name.rsplit('.', 1)[0]
-
-            await csv_handle.save_csv({
-                'file_name': file_name_without_extension + '.csv',
+            # Save the csv file.        
+            file_name_without_extension = file_name.rsplit('.', 1)[0] + '_final'
+            csv_utils.save_csv({
+                'file_name':  file_name_without_extension + '.csv',
                 'phase_value': 'final',
                 'data': qa_data
             })
             
             object_name = file_name_without_extension + '.csv'
-
             # 减 1 是为了去除表头
             object_count = len(qa_data) - 1
-
+            
+            logger.debug(f"{log_tag_const.QA_SPLIT} Finish splitting QA.")
+        
+        logger.debug(f"{log_tag_const.PDF_HANDLE} Finish manipulating the text in pdf")
         return {
             'status': 200,
             'message': '',
@@ -141,51 +149,81 @@ async def text_manipulate(req_json, opt={}):
             }
         }
     except Exception as ex:
-        logger.error(str(ex))
+        logger.error(''.join([
+            f"{log_tag_const.PDF_HANDLE} There is an error when manipulate ",
+            f"the text in pdf handler. \n{traceback.format_exc()}"
+        ]))
+        logger.debug(f"{log_tag_const.PDF_HANDLE} Finish manipulating the text in pdf")
         return {
             'status': 400,
-            'message': '',
-            'data': ''
+            'message': str(ex),
+            'data': traceback.format_exc()
         }
 
 
-
-async def data_clean(opt={}):
-    logger.info("pdf text data clean start!")
-    support_type = opt['support_type']
+def _data_clean(opt={}):
+    """Clean the data.
+    
+    opt is a dictionary object. It has the following keys:
+    support_type_map: example
+        {
+            "qa_split": 1, 
+            "remove_invisible_characters": 1, 
+            "space_standardization": 1, 
+            "remove_email": 1
+        }
+    data: data;
+    file_name: file name;
+    conn_pool: database connection pool;
+    task_id: data process task id;
+    """
+    support_type_map = opt['support_type_map']
     data = opt['data']
 
-    # 去除不可见字符
-    if any(d.get('type') == 'remove_invisible_characters' for d in support_type):
-        result = await clean_transform.remove_invisible_characters({
+    # remove invisible characters
+    if support_type_map.get('remove_invisible_characters'):
+        result = clean_transform.remove_invisible_characters({
             'text': data
         })
+        if result['status'] == 200:
+            if result['data']['found'] > 0:
+                task_detail_item = {
+                    'id': ulid.ulid(),
+                    'task_id': opt['task_id'],
+                    'file_name': opt['file_name'],
+                    'transform_type': 'remove_invisible_characters',
+                    'pre_content': data,
+                    'post_content': result['data']['text']
+                }
+                data_process_detail_db_operate.insert_transform_info(
+                    task_detail_item, {
+                        'pool': opt['conn_pool']
+                    }
+                )
+            data = result['data']['text']
 
-        if result['status'] != 200:
-            return {
-                'status': 400,
-                'message': '去除不可见字符失败',
-                'data': ''
-            }            
-        
-        data = result['data']
     
-    # 空格处理
-    if any(d.get('type') == 'space_standardization' for d in support_type):
-        result = await clean_transform.space_standardization({
+    # process for space standardization
+    if support_type_map.get('space_standardization'):
+        result = clean_transform.space_standardization({
             'text': data
         })
-
-        if result['status'] != 200:
-            return {
-                'status': 400,
-                'message': '空格处理失败',
-                'data': ''
-            }            
-        
-        data = result['data']
-
-    logger.info("pdf text data clean stop!")
+        if result['status'] == 200:
+            if result['data']['found'] > 0:
+                task_detail_item = {
+                    'id': ulid.ulid(),
+                    'task_id': opt['task_id'],
+                    'file_name': opt['file_name'],
+                    'transform_type': 'remove_invisible_characters',
+                    'pre_content': data,
+                    'post_content': result['data']['text']
+                }
+                data_process_detail_db_operate.insert_transform_info(
+                    task_detail_item, {
+                        'pool': opt['conn_pool']
+                    }
+                )
+            data = result['data']['text']
 
     return {
         'status': 200,
@@ -194,24 +232,48 @@ async def data_clean(opt={}):
     }
 
 
-async def privacy_erosion(opt={}):
-    logger.info("pdf text privacy erosion start!")
-    support_type = opt['support_type']
+def _remove_privacy_info(opt={}):
+    """"Remove the privacy info such as removing email.
+    
+    opt is a dictionary object. It has the following keys:
+    support_type_map: example
+        {
+            "qa_split": 1, 
+            "remove_invisible_characters": 1, 
+            "space_standardization": 1, 
+            "remove_email": 1
+        }
+    data: data;
+    file_name: file name;
+    conn_pool: database connection pool;
+    task_id: data process task id;
+    """
+    support_type_map = opt['support_type_map']
     data = opt['data']
 
-    # 去邮箱
-    if any(d.get('type') == 'remove_email' for d in support_type):
-        result = await privacy_transform.remove_email({
+    # remove email
+    if support_type_map.get('remove_email'):
+        result = privacy_transform.remove_email({
             'text': data
         })
-
-        if result['status'] != 200:
-            return result            
+        if result['status'] == 200:
+            if result['data']['found'] > 0:
+                task_detail_item = {
+                    'id': ulid.ulid(),
+                    'task_id': opt['task_id'],
+                    'file_name': opt['file_name'],
+                    'transform_type': 'remove_email',
+                    'pre_content': data,
+                    'post_content': result['data']['text']
+                }
+                data_process_detail_db_operate.insert_transform_info(
+                    task_detail_item, {
+                        'pool': opt['conn_pool']
+                    }
+                )
+            data = result['data']['text']
         
-        data = result['data']
-
-    logger.info("pdf text privacy erosion stop!")
-
+   
     return {
         'status': 200,
         'message': '',
@@ -220,69 +282,76 @@ async def privacy_erosion(opt={}):
 
 
 
-async def get_content(opt={}):
-    file_path = opt['file_path']
-
-    reader = PdfReader(file_path)
-    number_of_pages = len(reader.pages)
-    pages = reader.pages
-    content = ""
-    for page in pages:
-        content += page.extract_text()
-
-    return content
-
-
-async def generate_QA(req_json, opt={}):
-    logger.info("pdf text generate qa start!")
+def _generate_qa_list(opt={}):
+    """Generate the Question and Answer list.
     
-    # 文本分段
+    opt is a dictionary object. It has the following keys:
+    chunk_size: chunck size;
+    chunk_overlap: chunk overlap;
+    data: the text used to generate QA;
+    """
+    # step 1
+    # Split the text.
     chunk_size = config.knowledge_chunk_size
-    if "chunk_size" in req_json:
-        chunk_size = req_json['chunk_size']
+    if opt.get('chunk_size') is not None:
+        chunk_size = opt.get('chunk_size')
 
-    chunk_overlap = config.knowledge_chunk_overlap
-    if "chunk_overlap" in req_json:
-        chunk_overlap = req_json['chunk_overlap']
+    chunk_overlap = config.knowledge_chunk_overlap 
+    if opt.get('chunk_overlap') is not None:
+        chunk_overlap = opt.get('chunk_overlap')
 
-    separator = "\n\n"
+    text_splitter = text_split_helper.init_spacy_text_splitter({
+        'separator': "\n\n",
+        'chunk_size': chunk_size,
+        'chunk_overlap': chunk_overlap
+    })
+    texts = text_split_helper.get_splitted_text_by_spacy(text_splitter, {
+        'data': opt['data']
+    })
+    logger.debug(''.join([
+        f"original text is: \n{opt['data']}\n",
+        f"splitted text is: \n{texts}\n"
+    ]))
 
-    text_splitter = SpacyTextSplitter(
-        separator=separator,
-        pipeline="zh_core_web_sm",
-        chunk_size=int(chunk_size),
-        chunk_overlap=int(chunk_overlap),
-    )
-    texts = text_splitter.split_text(opt['data'])
 
-    # 生成QA
+    # step 2
+    # Generate the QA list.
     qa_list = [['q', 'a']]
-    await zhi_pu_ai_service.init_service({
+    zhi_pu_ai_service.init_service({
         'api_key': config.zhipuai_api_key
     })
     for item in texts:
         text = item.replace("\n", "")
-        data = await zhi_pu_ai_service.generate_qa({
+        data = zhi_pu_ai_service.generate_qa({
             'text': text
         })
-
         qa_list.extend(data)
-        
-    logger.info("pdf text generate qa stop!")
 
     return qa_list
 
 
-async def document_chunk(req_json, opt={}):
+def _convert_support_type_to_map(supprt_type):
+    """Convert support type to map.
+    
+    support_type: support type list
+    example
+    [
+        {
+            "type": "qa_split"
+        },
+        {
+            "type": "remove_invisible_characters"
+        },
+        {
+            "type": "space_standardization"
+        },
+        {
+            "type": "remove_email"
+        }
+    ]
+    """
+    result = {}
+    for item in supprt_type:
+        result[item['type']] = 1
 
-    separator = "\n\n"
-
-    text_splitter = SpacyTextSplitter(
-        separator=separator,
-        pipeline="zh_core_web_sm",
-        chunk_size=opt['chunk_size'],
-        chunk_overlap=opt['chunk_overlap']
-    )
-    texts = text_splitter.split_text(opt['data'])
-        
-    return texts
+    return result

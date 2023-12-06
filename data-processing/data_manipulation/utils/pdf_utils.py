@@ -13,25 +13,21 @@
 # limitations under the License.
 
 
-KUBERNETES = "Kubernetes"
+from pypdf import PdfReader
 
-WEB_SERVER_ERROR = "Web Server Error"
-WEB_SERVER_ACCESS = "Web Server Access"
 
-DATABASE_POSTGRESQL = "DataBase PostgreSQL"
-MINIO = "Minio"
-MINIO_STORE_PROCESS = "Minio Store Process"
+def get_content(opt={}):
+    """Get the content from a pdf file.
+    
+    opt is a dictionary object. It has the following keys:
+    file_path: file path;
+    """
+    reader = PdfReader(opt["file_path"])
+    content = ""
 
-DATA_PROCESS_DETAIL = "Data Process Detail"
+    for page in reader.pages:
+        content += page.extract_text()
 
-PDF_HANDLE = "PDF Handle"
-CSV_HANDLE = "CSV Handle"
-QA_SPLIT = "Question Answer Split"
+    return content 
 
-CLEAN_TRANSFORM = "Clean Transform"
-PRIVACY_TRANSFORM = "Privacy Transform"
-
-THREADING = "Threading"
-
-ZHI_PU_AI = "Zhi Pu AI"
 

@@ -32,7 +32,7 @@ class CustomErrorHandler(ErrorHandler):
             f"{log_tag_const.WEB_SERVER_ERROR} The url has a error.\n",
             f"url: {request.url}\n",
             f"status code: {status_code} \n",
-            f"{exception} \n{traceback.format_exc()}"
+            f"error trace: \n{traceback.format_exc()}"
         ]))
         return json({
             'status': status_code,

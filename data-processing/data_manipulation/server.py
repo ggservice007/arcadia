@@ -24,7 +24,7 @@ from sanic_cors import CORS
 
 from common import config, log_tag_const
 from controller import data_process_controller
-from utils import log_utils, sanic_utls
+from utils import log_utils, sanic_utils
 from database_clients import postgresql_pool_client
 
 
@@ -38,7 +38,7 @@ logger = logging.getLogger('manipulate_server')
 
 app = Sanic(name='data_manipulate')
 CORS(app)
-app.error_handler = sanic_utls.CustomErrorHandler()
+app.error_handler = sanic_utils.CustomErrorHandler()
 
 
 @app.middleware('request')
@@ -73,7 +73,6 @@ async def shutdown_web_server(app, loop):
 
 
 app.blueprint(data_process_controller.data_process)
-
 
 
 def _create_database_connection():

@@ -12,25 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-###
-# 文件工具类
-###
-
 
 import os
 
 
-###
-# 生成文件名称
-# @author: wangxinbiao
-# @date: 2023-11-09 10:14:01
-# modify history
-# ==== 2023-11-09 10:14:01 ====
-# author: wangxinbiao
-# content:
-# 1) 基本功能实现
-###
-async def get_file_name(opt={}):
+def get_file_name(opt={}):
+    """Get file name."""
     file_name = opt['file_name']
     handle_name = opt['handle_name']
 
@@ -39,36 +26,17 @@ async def get_file_name(opt={}):
 
     return file_name_without_extension + '_' + handle_name + '.' + file_extension
 
-###
-# 获取临时文件路径
-# @author: wangxinbiao
-# @date: 2023-11-09 10:14:01
-# modify history
-# ==== 2023-11-09 10:14:01 ====
-# author: wangxinbiao
-# content:
-# 1) 基本功能实现
-###
 
-
-async def get_temp_file_path():
+def get_temp_file_path():
+    """Get temp file path"""
     current_directory = os.getcwd()
 
     csv_file_path = os.path.join(current_directory, 'file_handle/temp_file/')
 
     return csv_file_path
 
-###
-# 删除文件
-# @author: wangxinbiao
-# @date: 2023-11-09 10:14:01
-# modify history
-# ==== 2023-11-09 10:14:01 ====
-# author: wangxinbiao
-# content:
-# 1) 基本功能实现
-###
 
 
-async def delete_file(file_path):
+def delete_file(file_path):
+    """Delete file"""
     os.remove(file_path)

@@ -13,18 +13,23 @@
 # limitations under the License.
 
 
+import logging
 import re
 import zhipuai
+import traceback
 
-from common import config
+from common import config, log_tag_const
 
 
-async def init_service(opt={}):
+logger = logging.getLogger(__name__)
+
+
+def init_service(opt={}):
     """Initialize the ZhiPuAI service."""
     zhipuai.api_key = opt['api_key']
 
 
-async def generate_qa(opt={}):
+def generate_qa(opt={}):
     """Generate the questions and answers."""
     text = opt['text']
     content = """
@@ -44,24 +49,36 @@ async def generate_qa(opt={}):
     """
 
     content = content + text
-
-    response = zhipuai.model_api.invoke(
-        model="chatglm_6b",
-        prompt=[{"role": "user", "content": content}],
-        top_p=0.7,
-        temperature=0.9,
-    )
-
-    # # 格式化后的QA对
-    result = await _formatSplitText(response['data']['choices'][0]['content'])
+    result = []
+    try:
+        response = zhipuai.model_api.invoke(
+            model="chatglm_6b",
+            prompt=[{"role": "user", "content": content}],
+            top_p=0.7,
+            temperature=0.9,
+        )
+        if response['success']:
+            result = _format_response_to_qa_list(response)
+        else:
+            logger.error(''.join([
+                f"{log_tag_const.ZHI_PU_AI} Cannot access the ZhiPuAI service.\n",
+                f"The error is: \n{response['msg']}\n"
+            ]))
+    except Exception as ex:
+        result = []
+        logger.error(''.join([
+            f"{log_tag_const.ZHI_PU_AI} Cannot access the ZhiPuAI service.\n",
+            f"The tracing error is: \n{traceback.format_exc()}\n"
+        ]))
 
     return result
 
 
-async def _formatSplitText(text):
+def _format_response_to_qa_list(response):
+    """Format the response to the QA list."""
+    text = response['data']['choices'][0]['content']
 
     pattern = re.compile(r'Q\d+:(\s*)(.*?)(\s*)A\d+:(\s*)([\s\S]*?)(?=Q|$)')
-
     # 移除换行符
     text = text.replace('\\n', '')
     matches = pattern.findall(text)
